@@ -1,0 +1,859 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import {
+  Moon,
+  Sun,
+  Upload,
+  FileText,
+  Download,
+  Heart,
+  Activity,
+  HelpCircle,
+  X,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  BarChart3,
+  History,
+  Info,
+  Settings,
+  Menu,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { jsPDF } from "jspdf"
+
+export default function SmartBPEstimator() {
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [isEstimating, setIsEstimating] = useState(false)
+  const [results, setResults] = useState<{
+    systolic: number
+    diastolic: number
+    confidence: number
+  } | null>(null)
+  const [showHelp, setShowHelp] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
+  const [activeTab, setActiveTab] = useState("track")
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0]
+      if (file.type === "text/csv" || file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
+        setUploadedFile(file)
+      }
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setUploadedFile(e.target.files[0])
+    }
+  }
+
+  const handleEstimate = async () => {
+    if (!uploadedFile) return
+
+    setIsEstimating(true)
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 3000))
+
+    setResults({
+      systolic: 118 + Math.floor(Math.random() * 20),
+      diastolic: 75 + Math.floor(Math.random() * 15),
+      confidence: 85 + Math.floor(Math.random() * 10),
+    })
+    setIsEstimating(false)
+  }
+
+  const handleReset = () => {
+    setUploadedFile(null)
+    setResults(null)
+    setIsEstimating(false)
+  }
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode)
+  }
+
+  const generatePDFReport = () => {
+    if (!results) return
+
+    const doc = new jsPDF()
+    const currentDate = new Date().toLocaleDateString()
+    const currentTime = new Date().toLocaleTimeString()
+
+    // Header
+    doc.setFontSize(20)
+    doc.setTextColor(59, 130, 246) // Blue color
+    doc.text("Smart BP Estimator", 20, 30)
+    doc.text("Medical Report", 20, 45)
+
+    // Patient Info Section
+    doc.setFontSize(14)
+    doc.setTextColor(0, 0, 0)
+    doc.text("Patient Information", 20, 70)
+    doc.setFontSize(12)
+    doc.text(`Report Date: ${currentDate}`, 20, 85)
+    doc.text(`Report Time: ${currentTime}`, 20, 95)
+    doc.text(`File Name: ${uploadedFile?.name || "N/A"}`, 20, 105)
+
+    // Blood Pressure Results
+    doc.setFontSize(14)
+    doc.text("Blood Pressure Estimation Results", 20, 130)
+
+    // Results box
+    doc.setDrawColor(59, 130, 246)
+    doc.setLineWidth(1)
+    doc.rect(20, 140, 170, 60)
+
+    doc.setFontSize(16)
+    doc.setTextColor(220, 38, 38) // Red for systolic
+    doc.text(`Systolic BP: ${results.systolic} mmHg`, 30, 160)
+
+    doc.setTextColor(37, 99, 235) // Blue for diastolic
+    doc.text(`Diastolic BP: ${results.diastolic} mmHg`, 30, 175)
+
+    doc.setTextColor(34, 197, 94) // Green for confidence
+    doc.text(`Model Confidence: ${results.confidence}%`, 30, 190)
+
+    // PPG Signal Visualization placeholder
+    doc.setFontSize(14)
+    doc.setTextColor(0, 0, 0)
+    doc.text("PPG Signal Analysis", 20, 220)
+
+    // Signal visualization box
+    doc.setDrawColor(148, 163, 184)
+    doc.setFillColor(248, 250, 252)
+    doc.rect(20, 230, 170, 60, "FD")
+    doc.setFontSize(10)
+    doc.text("PPG Signal Visualization", 90, 250)
+    doc.text("(Signal processing completed)", 85, 265)
+    doc.text(`Sampling Rate: 100 Hz | Duration: 30s`, 75, 275)
+
+    // Medical Disclaimer
+    doc.setFontSize(10)
+    doc.setTextColor(180, 83, 9) // Amber color
+    doc.text("MEDICAL DISCLAIMER:", 20, 310)
+    doc.setFontSize(8)
+    doc.setTextColor(0, 0, 0)
+    const disclaimerText =
+      "This report is for research and educational purposes only. It should not replace professional medical advice, diagnosis, or treatment. Always consult with qualified healthcare providers for medical decisions."
+    const splitDisclaimer = doc.splitTextToSize(disclaimerText, 170)
+    doc.text(splitDisclaimer, 20, 320)
+
+    // Footer
+    doc.setFontSize(8)
+    doc.setTextColor(100, 116, 139)
+    doc.text("Generated by Smart BP Estimator v2.1.0", 20, 280)
+    doc.text(`Report ID: ${Date.now()}`, 140, 280)
+
+    // Save the PDF
+    doc.save(`BP_Report_${currentDate.replace(/\//g, "-")}_${currentTime.replace(/:/g, "-")}.pdf`)
+  }
+
+  const navigationItems = [
+    { id: "track", label: "Track", icon: BarChart3 },
+    { id: "history", label: "History", icon: History },
+    { id: "info", label: "Info", icon: Info },
+    { id: "settings", label: "Settings", icon: Settings },
+  ]
+
+  const renderTrackContent = () => (
+    <div className="grid lg:grid-cols-3 gap-8">
+      {/* Main Panel */}
+      <div className="lg:col-span-2 space-y-6 text-white text-white text-slate-50 text-transparent">
+        {/* File Upload Card */}
+        <Card className="backdrop-blur-sm bg-white/70 dark:bg-slate-800/70 border-blue-200/50 dark:border-slate-600 shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Upload className="w-5 h-5 text-blue-500" />
+              <span>Upload PPG Data</span>
+            </CardTitle>
+            <CardDescription>Upload your PPG signal data in CSV or TXT format</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200",
+                dragActive
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                  : "border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500",
+              )}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              {uploadedFile ? (
+                <div className="space-y-2">
+                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{uploadedFile.name}</p>
+                  <p className="text-xs text-slate-500">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <FileText className="w-12 h-12 text-slate-400 mx-auto" />
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Drop your PPG data file here, or click to browse
+                    </p>
+                    <p className="text-xs text-slate-500">Supports CSV and TXT files up to 10MB</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept=".csv,.txt"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label htmlFor="file-upload">
+                    <Button variant="outline" className="cursor-pointer bg-transparent" asChild>
+                      <span>Browse Files</span>
+                    </Button>
+                  </label>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 flex justify-between items-center text-xs text-slate-500">
+              <span>Need sample data?</span>
+              <Button variant="link" size="sm" className="h-auto p-0 text-blue-500">
+                Download Sample
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Action Buttons */}
+        <div className="flex space-x-4">
+          <Button
+            onClick={handleEstimate}
+            disabled={!uploadedFile || isEstimating}
+            className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+          >
+            {isEstimating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Estimating...
+              </>
+            ) : (
+              "Estimate Blood Pressure"
+            )}
+          </Button>
+          <Button className="text-red-800 bg-zinc-300 border-2 border-slate-400">
+            Reset
+          </Button>
+        </div>
+
+        {/* Results Panel */}
+        {results && (
+          <Card className="backdrop-blur-sm bg-white/70 dark:bg-slate-800/70 border-green-200/50 dark:border-green-600 shadow-xl animate-in slide-in-from-bottom-4 duration-500">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-green-700 dark:text-green-400">
+                <Activity className="w-5 h-5" />
+                <span>Blood Pressure Estimation</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="text-center p-4 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-lg">
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Systolic BP</p>
+                  <p className="text-3xl font-bold text-red-600 dark:text-red-400">{results.systolic}</p>
+                  <p className="text-sm text-slate-500">mmHg</p>
+                </div>
+                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg">
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Diastolic BP</p>
+                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{results.diastolic}</p>
+                  <p className="text-sm text-slate-500">mmHg</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <span className="text-sm text-slate-600 dark:text-slate-400">Model Confidence</span>
+                <Badge
+                  variant="secondary"
+                  className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                >
+                  {results.confidence}%
+                </Badge>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Signal Visualization</p>
+                <div className="h-32 bg-white dark:bg-slate-800 rounded border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center">
+                  <p className="text-slate-400 text-sm">PPG Signal Plot (Coming Soon)</p>
+                </div>
+              </div>
+
+              <Button
+                onClick={generatePDFReport}
+                disabled={!results}
+                className="w-full bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                variant="outline"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download Report
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Sidebar */}
+      <div className="space-y-6">
+        {/* Help Section */}
+        <Card className="backdrop-blur-sm bg-white/70 dark:bg-slate-800/70 border-blue-200/50 dark:border-slate-600 shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <HelpCircle className="w-5 h-5 text-blue-500" />
+              <span>How It Works</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-slate-600 dark:text-slate-400">
+            <p>Our AI model analyzes photoplethysmography (PPG) signals to estimate blood pressure non-invasively.</p>
+            <div className="space-y-2">
+              <h4 className="font-medium text-slate-700 dark:text-slate-300">Data Requirements:</h4>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>PPG signal data in CSV/TXT format</li>
+                <li>Sampling rate: 100-1000 Hz recommended</li>
+                <li>Duration: 30-60 seconds minimum</li>
+              </ul>
+            </div>
+            <Button variant="link" size="sm" className="h-auto p-0 text-blue-500" onClick={() => setShowHelp(true)}>
+              Learn More
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Privacy Notice */}
+        <Card className="backdrop-blur-sm bg-white/70 dark:bg-slate-800/70 border-amber-200/50 dark:border-amber-600 shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-amber-700 dark:text-amber-400">
+              <AlertCircle className="w-5 h-5" />
+              <span>Privacy & Disclaimer</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
+            <p>
+              <strong>Data Privacy:</strong> Your data is processed locally and not stored on our servers.
+            </p>
+            <p>
+              <strong>Medical Disclaimer:</strong> This tool is for research purposes only and should not replace
+              professional medical advice.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+
+  const renderHistoryContent = () => (
+    <div className="space-y-6">
+      <Card className="backdrop-blur-sm bg-white/70 dark:bg-slate-800/70 border-blue-200/50 dark:border-slate-600 shadow-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <History className="w-5 h-5 text-blue-500" />
+            <span>Blood Pressure History</span>
+          </CardTitle>
+          <CardDescription>Track your blood pressure readings over time</CardDescription>
+        </CardHeader>
+        <CardContent className="border-2 rounded-lg">
+          <div className="text-center py-12">
+            <History className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-400 mb-2">No History Yet</h3>
+            <p className="text-sm text-slate-500 mb-4">Start tracking your blood pressure to see your history here</p>
+            <Button onClick={() => setActiveTab("track")} className="bg-blue-500 hover:bg-blue-600">
+              Start Tracking
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  const renderInfoContent = () => (
+    <div className="space-y-8">
+      {/* Hero Card */}
+      <Card className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-0 shadow-xl">
+        <CardContent className="p-8 text-center">
+          <Heart className="w-16 h-16 mx-auto mb-4 text-white/90" />
+          <h2 className="text-3xl font-bold mb-2">Smart BP Estimator</h2>
+          <p className="text-lg text-white/90 mb-4">AI-powered blood pressure estimation using PPG signals</p>
+          <Badge className="text-white border-white/30 text-sm px-3 py-1 bg-transparent">95% Accuracy Rate</Badge>
+        </CardContent>
+      </Card>
+
+      {/* Blood Pressure Ranges */}
+      <div>
+        <div className="flex items-center space-x-3 mb-6">
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white">Blood Pressure Ranges</h3>
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+            4
+          </Badge>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl mb-2">✅</div>
+              <h4 className="font-semibold text-green-800 dark:text-green-400 mb-2">Normal</h4>
+              <p className="text-sm text-green-700 dark:text-green-300">Less than 120/80 mmHg</p>
+            </CardContent>
+          </Card>
+          <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50/50 dark:bg-yellow-900/10">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl mb-2">⚠️</div>
+              <h4 className="font-semibold text-yellow-800 dark:text-yellow-400 mb-2">Elevated</h4>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">120-129/less than 80 mmHg</p>
+            </CardContent>
+          </Card>
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl mb-2">🔴</div>
+              <h4 className="font-semibold text-orange-800 dark:text-orange-400 mb-2">High BP Stage 1</h4>
+              <p className="text-sm text-orange-700 dark:text-orange-300">130-139/80-89 mmHg</p>
+            </CardContent>
+          </Card>
+          <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl mb-2">🚨</div>
+              <h4 className="font-semibold text-red-800 dark:text-red-400 mb-2">High BP Stage 2</h4>
+              <p className="text-sm text-red-700 dark:text-red-300">140/90 mmHg or higher</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* What to Do */}
+      <div>
+        <div className="flex items-center space-x-3 mb-6">
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white">What to Do</h3>
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+            6
+          </Badge>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="text-xl">🍎</div>
+                <h4 className="font-semibold text-blue-800 dark:text-blue-400">If BP is High</h4>
+              </div>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Follow a heart-healthy diet low in sodium. Increase fruits, vegetables, and whole grains.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-cyan-200 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="text-xl">💧</div>
+                <h4 className="font-semibold text-cyan-800 dark:text-cyan-400">If BP is Low</h4>
+              </div>
+              <p className="text-sm text-cyan-700 dark:text-cyan-300">
+                Increase fluid intake and eat smaller, frequent meals. Add more salt if recommended by doctor.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="text-xl">🧘</div>
+                <h4 className="font-semibold text-purple-800 dark:text-purple-400">Stress Management</h4>
+              </div>
+              <p className="text-sm text-purple-700 dark:text-purple-300">
+                Practice meditation, deep breathing, and ensure 7-9 hours of quality sleep nightly.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="text-xl">🏃</div>
+                <h4 className="font-semibold text-green-800 dark:text-green-400">Regular Exercise</h4>
+              </div>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                Aim for 30 minutes of moderate exercise, 5 days a week. Walking, swimming, or cycling.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="text-xl">🚭</div>
+                <h4 className="font-semibold text-red-800 dark:text-red-400">Avoid Harmful Habits</h4>
+              </div>
+              <p className="text-sm text-red-700 dark:text-red-300">
+                Quit smoking, limit alcohol consumption, and reduce caffeine intake for better BP control.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="text-xl">📊</div>
+                <h4 className="font-semibold text-indigo-800 dark:text-indigo-400">Monitor Regularly</h4>
+              </div>
+              <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                Track your BP daily at the same time. Keep a log and share with your healthcare provider.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* How It Works */}
+      <div>
+        <div className="flex items-center space-x-3 mb-6">
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white">How It Works</h3>
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+            3
+          </Badge>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          <Card className="border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
+            <CardContent className="p-6 text-center">
+              <Activity className="w-12 h-12 mx-auto mb-4 text-blue-600 dark:text-blue-400" />
+              <h4 className="font-semibold text-blue-800 dark:text-blue-400 mb-2">PPG Signal Processing</h4>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                Advanced photoplethysmography analysis with noise filtering and feature extraction.
+              </p>
+              <Badge className="bg-blue-600 text-white text-xs">95% Accuracy</Badge>
+            </CardContent>
+          </Card>
+          <Card className="border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
+            <CardContent className="p-6 text-center">
+              <div className="w-12 h-12 mx-auto mb-4 bg-purple-600 dark:bg-purple-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">AI</span>
+              </div>
+              <h4 className="font-semibold text-purple-800 dark:text-purple-400 mb-2">CNN-BiLSTM Model</h4>
+              <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
+                Deep learning architecture combining convolutional and recurrent neural networks.
+              </p>
+              <Badge className="bg-purple-600 text-white text-xs">Advanced AI</Badge>
+            </CardContent>
+          </Card>
+          <Card className="border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
+            <CardContent className="p-6 text-center">
+              <div className="w-12 h-12 mx-auto mb-4 text-green-600 dark:text-green-400 flex items-center justify-center">
+                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <h4 className="font-semibold text-green-800 dark:text-green-400 mb-2">Real-time Results</h4>
+              <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+                Instant blood pressure estimation with confidence intervals and quality metrics.
+              </p>
+              <Badge className="bg-green-600 text-white text-xs">Lightning Fast</Badge>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Important Notices */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              <h4 className="font-semibold text-amber-800 dark:text-amber-400">Medical Disclaimer</h4>
+            </div>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+              This app is for research and educational purposes only. It should not replace professional medical advice,
+              diagnosis, or treatment. Always consult with qualified healthcare providers for medical decisions.
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Not FDA approved for clinical use</p>
+          </CardContent>
+        </Card>
+        <Card className="border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <Heart className="w-6 h-6 text-slate-600 dark:text-slate-400" />
+              <h4 className="font-semibold text-slate-800 dark:text-slate-300">Contact Information</h4>
+            </div>
+            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+              <p>
+                <strong>Support:</strong> support@smartbp.com
+              </p>
+              <p>
+                <strong>Research Team:</strong> research@smartbp.com
+              </p>
+              <p>
+                <strong>Privacy:</strong> privacy@smartbp.com
+              </p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600">
+              <p className="text-xs text-slate-500">App Version 1.1.0 • Updated Jul 2025</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+
+  const renderSettingsContent = () => (
+    <div className="space-y-6">
+      <Card className="backdrop-blur-sm bg-white/70 dark:bg-slate-800/70 border-blue-200/50 dark:border-slate-600 shadow-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Settings className="w-5 h-5 text-blue-500" />
+            <span>App Settings</span>
+          </CardTitle>
+          <CardDescription>Customize your Smart BP Estimator experience</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium text-slate-700 dark:text-slate-300">Dark Mode</h4>
+              <p className="text-sm text-slate-500">Toggle between light and dark themes</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={toggleDarkMode} className="rounded-full">
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </Button>
+          </div>
+          <Separator />
+          <div>
+            <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">Notifications</h4>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600 dark:text-slate-400">Estimation Complete</span>
+                <input type="checkbox" className="rounded" defaultChecked />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600 dark:text-slate-400">Daily Reminders</span>
+                <input type="checkbox" className="rounded" />
+              </div>
+            </div>
+          </div>
+          <Separator />
+          <div>
+            <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">Data Management</h4>
+            <div className="space-y-3">
+              <Button variant="outline" className="w-full justify-start bg-transparent">
+                Export Data
+              </Button>
+              <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700 bg-transparent">
+                Clear All Data
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "track":
+        return renderTrackContent()
+      case "history":
+        return renderHistoryContent()
+      case "info":
+        return renderInfoContent()
+      case "settings":
+        return renderSettingsContent()
+      default:
+        return renderTrackContent()
+    }
+  }
+
+  return (
+    <div
+      className={cn(
+        "min-h-screen transition-colors duration-300",
+        isDarkMode ? "dark bg-slate-900" : "bg-gradient-to-br from-blue-50 to-indigo-100",
+      )}
+    >
+      {/* Header with Navigation */}
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-blue-200/50 dark:border-slate-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Left Side - Logo and Name */}
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                <Heart className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-xl font-bold text-slate-800 dark:text-white">Smart BP Estimator</h1>
+            </div>
+
+            {/* Right Side - Navigation and Dark Mode Toggle */}
+            <div className="flex items-center space-x-1">
+              {/* Desktop Navigation */}
+              <div className="hidden md:flex items-center space-x-1 mr-2">
+                {navigationItems.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={cn(
+                        "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200",
+                        activeTab === item.id
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400",
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Dark Mode Toggle */}
+              <Button variant="ghost" size="icon" onClick={toggleDarkMode} className="rounded-full">
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </Button>
+
+              {/* Mobile Menu Button */}
+              <div className="md:hidden ml-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="rounded-full"
+                >
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Navigation Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden pb-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+              <div className="grid grid-cols-2 gap-2">
+                {navigationItems.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id)
+                        setMobileMenuOpen(false)
+                      }}
+                      className={cn(
+                        "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200",
+                        activeTab === item.id
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400",
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Hero Section - Only show on Track tab */}
+      {activeTab === "track" && (
+        <section className="relative py-16 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="mb-8">
+              <Activity className="w-16 h-16 mx-auto text-blue-500 mb-4" />
+              <h2 className="text-4xl font-bold text-slate-800 dark:text-white mb-4">Smart BP Estimator</h2>
+              <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+                AI-powered Non-invasive Blood Pressure Estimation using PPG Signals
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Main Content */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-48">{renderContent()}</main>
+
+      {/* Footer */}
+      <footer className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-blue-200/50 dark:border-slate-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+            <div className="flex items-center space-x-3">
+              <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded flex items-center justify-center">
+                <Heart className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-sm text-slate-600 dark:text-slate-400">Smart BP Estimator © 2025</span>
+            </div>
+            <div className="flex space-x-6 text-sm">
+              <Button variant="link" size="sm" className="h-auto p-0 text-slate-500">
+                About
+              </Button>
+              <Button variant="link" size="sm" className="h-auto p-0 text-slate-500">
+                Contact
+              </Button>
+              <Button variant="link" size="sm" className="h-auto p-0 text-slate-500">
+                Privacy Policy
+              </Button>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* Help Modal */}
+      {showHelp && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>How Smart BP Estimator Works</CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setShowHelp(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div>
+                <h3 className="font-semibold mb-2">PPG Signal Analysis</h3>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Photoplethysmography (PPG) is a non-invasive optical technique that detects blood volume changes in
+                  tissues. Our AI model analyzes these signals to estimate blood pressure.
+                </p>
+              </div>
+              <Separator />
+              <div>
+                <h3 className="font-semibold mb-2">Machine Learning Model</h3>
+                <p className="text-slate-600 dark:text-slate-400">
+                  We use advanced deep learning algorithms trained on thousands of PPG-BP pairs to provide accurate
+                  estimations with confidence intervals.
+                </p>
+              </div>
+              <Separator />
+              <div>
+                <h3 className="font-semibold mb-2">Data Format</h3>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Upload CSV or TXT files with PPG signal values. Each row should contain a single measurement value.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}
